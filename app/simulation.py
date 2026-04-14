@@ -1,0 +1,155 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import time
+import json
+import paho.mqtt.client as mqtt
+
+from core.state_machine import StateMachine
+from core.controller import Controller
+
+from devices.sensors.temperature import TemperatureSensor
+from devices.sensors.proximity import ProximitySensor
+
+from devices.actuators.motor import Motor
+from devices.actuators.conveyor import Conveyor
+from devices.actuators.alarm import Alarm
+
+# MQTT
+BROKER = "broker.hivemq.com"
+TOPIC_PUB = "plc/simulation/data"
+TOPIC_SUB = "plc/simulation/control"
+
+# DEVICES
+temp = TemperatureSensor("Temp")
+prox = ProximitySensor("Proximity")
+
+motor = Motor()
+conveyor = Conveyor()
+alarm = Alarm()
+
+# CORE
+sm = StateMachine()
+controller = Controller(motor, conveyor, alarm)
+
+# KPI
+run_time = 0
+stop_time = 0
+item_count = 0
+accepted_count = 0
+rejected_count = 0
+error_count = 0
+
+last_item = False
+last_state = "IDLE"
+command = "RESET"
+
+# RESET FUNCTION
+def reset_kpi():
+    global run_time, stop_time, item_count
+    global accepted_count, rejected_count, error_count
+    global last_item, last_state
+
+    run_time = 0
+    stop_time = 0
+    item_count = 0
+    accepted_count = 0
+    rejected_count = 0
+    error_count = 0
+
+    last_item = False
+    last_state = "IDLE"
+
+    print("🔄 KPI RESET DONE")
+
+# MQTT
+client = mqtt.Client()
+
+def on_connect(client, userdata, flags, rc):
+    print("Connected")
+    client.subscribe(TOPIC_SUB)
+
+def on_message(client, userdata, msg):
+    global command
+    command = msg.payload.decode()
+    print("COMMAND:", command)
+
+    if command == "RESET":
+        reset_kpi()
+
+client.on_connect = on_connect
+client.on_message = on_message
+
+client.connect(BROKER, 1883, 60)
+client.loop_start()
+
+print("=== RUNNING ===")
+
+while True:
+    state = sm.get_state()
+
+    temperature = temp.read(state)
+    item_detected = prox.detect(state)
+
+    state = sm.transition(command, temperature)
+    controller.update(state, item_detected)
+
+    # TIME
+    if state == "RUN":
+        run_time += 2
+    else:
+        stop_time += 2
+
+    # ITEM COUNT
+    if item_detected and not last_item:
+        item_count += 1
+
+        if state == "RUN":
+            accepted_count += 1
+        elif state == "ERROR":
+            rejected_count += 1
+
+    last_item = item_detected
+
+    # ERROR COUNT
+    if state == "ERROR" and last_state != "ERROR":
+        error_count += 1
+
+    last_state = state
+
+    # CALCULATIONS
+    total_time = run_time + stop_time
+
+    rate = (item_count / run_time * 60) if run_time > 0 else 0
+    error_percent = (error_count / item_count * 100) if item_count > 0 else 0
+    efficiency = (run_time / total_time * 100) if total_time > 0 else 0
+    yield_percent = (accepted_count / item_count * 100) if item_count > 0 else 0
+
+    # ✅ IMPORTANT: SEND ALL DATA
+    data = {
+        "state": state,
+        "temperature": temperature,
+        "motor": motor.status(),
+        "conveyor": conveyor.status(),
+        "alarm": alarm.status(),
+        "item_detected": item_detected,
+
+        # KPI
+        "run_time": run_time,
+        "stop_time": stop_time,
+        "item_count": item_count,
+        "accepted_count": accepted_count,
+        "rejected_count": rejected_count,
+        "error_count": error_count,
+        "rate": rate,
+        "error_percent": error_percent,
+        "efficiency": efficiency,
+        "yield_percent": yield_percent
+    }
+
+    client.publish(TOPIC_PUB, json.dumps(data))
+
+    print(data)
+
+    time.sleep(2)

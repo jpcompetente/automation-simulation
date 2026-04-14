@@ -1,0 +1,2 @@
+TEMP_LIMIT = 80
+VIB_LIMIT = 5
