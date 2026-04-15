@@ -17,7 +17,8 @@ from devices.actuators.conveyor import Conveyor
 from devices.actuators.alarm import Alarm
 
 # MQTT
-BROKER = "broker.hivemq.com"
+BROKER = "127.0.0.1"
+PORT = 1885
 TOPIC_PUB = "plc/simulation/data"
 TOPIC_SUB = "plc/simulation/control"
 
@@ -40,16 +41,21 @@ item_count = 0
 accepted_count = 0
 rejected_count = 0
 error_count = 0
+warning_count = 0
 
 last_item = False
 last_state = "IDLE"
 command = "RESET"
 
+# ERROR LOCK
+error_locked = False
+error_message = ""
+
 # RESET FUNCTION
 def reset_kpi():
     global run_time, stop_time, item_count
-    global accepted_count, rejected_count, error_count
-    global last_item, last_state
+    global accepted_count, rejected_count, error_count, warning_count
+    global last_item, last_state, error_locked, error_message
 
     run_time = 0
     stop_time = 0
@@ -57,11 +63,15 @@ def reset_kpi():
     accepted_count = 0
     rejected_count = 0
     error_count = 0
+    warning_count = 0
+
+    error_locked = False
+    error_message = ""
 
     last_item = False
     last_state = "IDLE"
 
-    print("🔄 KPI RESET DONE")
+    print("🔄 RESET DONE")
 
 # MQTT
 client = mqtt.Client()
@@ -71,35 +81,74 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(TOPIC_SUB)
 
 def on_message(client, userdata, msg):
-    global command
+    global command, error_locked, error_message
+
     command = msg.payload.decode()
     print("COMMAND:", command)
 
     if command == "RESET":
         reset_kpi()
+        alarm.deactivate()
+        error_locked = False
+        error_message = ""
 
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect(BROKER, 1883, 60)
+client.connect(BROKER, PORT, 60)
 client.loop_start()
 
 print("=== RUNNING ===")
 
 while True:
-    state = sm.get_state()
 
+    # CURRENT STATE
+    state = sm.state
+
+    # READ SENSORS
     temperature = temp.read(state)
     item_detected = prox.detect(state)
 
-    state = sm.transition(command, temperature)
-    controller.update(state, item_detected)
+    # 🔥 SAFETY LOGIC (MAIN FIX)
+    if error_locked:
+        state = "ERROR"
+
+    else:
+        if temperature > 60:
+            warning_count += 1
+
+            # If 50 warnings are reached, log as error
+            if warning_count >= 50 and error_count < 100:
+                error_count += 1
+
+            # If 100 errors are reached, lock the system
+            if error_count >= 100:
+                error_locked = True
+                error_message = "LOCKED - 100 Errors Reached"
+                state = "ERROR"
+
+                motor.stop()
+                conveyor.stop()
+                alarm.activate()
+
+                print("🔥 SYSTEM LOCKED - 100 Errors Reached")
+
+            elif warning_count >= 50:
+                error_message = "Warning Threshold Reached"
+                state = "ERROR"  # Optional: set to ERROR state if warnings are high enough
+
+        else:
+            state = sm.transition(command, temperature)
+            controller.update(state, item_detected)
+
+            if state != "ERROR":
+                alarm.deactivate()
 
     # TIME
     if state == "RUN":
-        run_time += 2
+        run_time += 1
     else:
-        stop_time += 2
+        stop_time += 1
 
     # ITEM COUNT
     if item_detected and not last_item:
@@ -112,7 +161,7 @@ while True:
 
     last_item = item_detected
 
-    # ERROR COUNT
+    # ERROR COUNT TRACK
     if state == "ERROR" and last_state != "ERROR":
         error_count += 1
 
@@ -126,7 +175,7 @@ while True:
     efficiency = (run_time / total_time * 100) if total_time > 0 else 0
     yield_percent = (accepted_count / item_count * 100) if item_count > 0 else 0
 
-    # ✅ IMPORTANT: SEND ALL DATA
+    # DATA SEND
     data = {
         "state": state,
         "temperature": temperature,
@@ -135,21 +184,25 @@ while True:
         "alarm": alarm.status(),
         "item_detected": item_detected,
 
-        # KPI
         "run_time": run_time,
         "stop_time": stop_time,
         "item_count": item_count,
         "accepted_count": accepted_count,
         "rejected_count": rejected_count,
         "error_count": error_count,
+        "warning_count": warning_count,
+
         "rate": rate,
         "error_percent": error_percent,
         "efficiency": efficiency,
-        "yield_percent": yield_percent
+        "yield_percent": yield_percent,
+
+        "error_message": error_message,
+        "error_locked": error_locked
     }
 
     client.publish(TOPIC_PUB, json.dumps(data))
 
     print(data)
 
-    time.sleep(2)
+    time.sleep(1)

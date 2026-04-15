@@ -4,20 +4,12 @@ import json
 from datetime import datetime
 
 # MQTT SETTINGS
-BROKER = "broker.hivemq.com"
-PORT = 1883
+BROKER = "127.0.0.1"
+PORT = 1885
 TOPIC_SUB = "plc/simulation/data"
 TOPIC_PUB = "plc/simulation/control"
 
-data = {
-    "state": "IDLE",
-    "temperature": 0,
-    "motor": False,
-    "rate": 0,
-    "error_percent": 0,
-    "efficiency": 0,
-    "yield_percent": 0
-}
+data = {}
 
 # ---------- UI ----------
 root = tk.Tk()
@@ -25,8 +17,7 @@ root.title("Industrial PLC Dashboard")
 root.geometry("450x780")
 
 # HEADER
-tk.Label(root, text="Industrial Automation System",
-         font=("Arial", 16, "bold")).pack(pady=10)
+tk.Label(root, text="Industrial Automation System", font=("Arial", 16, "bold")).pack(pady=10)
 
 # BIG STATUS
 status_big = tk.Label(root, text="IDLE", font=("Arial", 26, "bold"))
@@ -39,6 +30,13 @@ conn_label.pack()
 # ERROR MESSAGE
 error_label = tk.Label(root, text="Error: None", fg="red")
 error_label.pack()
+
+# ✅ NEW (FIX)
+warning_label = tk.Label(root, text="Warnings: 0")
+warning_label.pack()
+
+error_message_label = tk.Label(root, text="Error Message: None", fg="red")
+error_message_label.pack()
 
 # KPI FRAME
 frame_kpi = tk.LabelFrame(root, text="KPI", padx=10, pady=5)
@@ -104,18 +102,18 @@ alarm_label.pack(anchor="w")
 frame_controls = tk.LabelFrame(root, text="Controls", padx=10, pady=5)
 frame_controls.pack(fill="x", padx=10, pady=8)
 
+
 def send_command(cmd):
-    client.publish(TOPIC_PUB, cmd)
-    add_log(f"✔ Command Sent: {cmd}")
+    try:
+        client.publish(TOPIC_PUB, cmd)
+        add_log(f"✔ Command Sent: {cmd}")
+    except:
+        add_log("⚠ MQTT not connected")
 
-tk.Button(frame_controls, text="START", bg="green", fg="white",
-          command=lambda: send_command("START")).pack(fill="x", pady=2)
 
-tk.Button(frame_controls, text="STOP", bg="orange",
-          command=lambda: send_command("STOP")).pack(fill="x", pady=2)
-
-tk.Button(frame_controls, text="RESET", bg="gray", fg="white",
-          command=lambda: send_command("RESET")).pack(fill="x", pady=2)
+tk.Button(frame_controls, text="START", bg="green", fg="white", command=lambda: send_command("START")).pack(fill="x", pady=2)
+tk.Button(frame_controls, text="STOP", bg="orange", command=lambda: send_command("STOP")).pack(fill="x", pady=2)
+tk.Button(frame_controls, text="RESET", bg="gray", fg="white", command=lambda: send_command("RESET")).pack(fill="x", pady=2)
 
 # LOGS
 frame_logs = tk.LabelFrame(root, text="System Logs", padx=10, pady=5)
@@ -124,55 +122,82 @@ frame_logs.pack(fill="both", expand=True, padx=10, pady=8)
 log_box = tk.Text(frame_logs, height=10)
 log_box.pack(fill="both", expand=True)
 
+
 # ---------- FUNCTIONS ----------
 
 def get_color(state):
     return {"RUN": "green", "ERROR": "red", "STOP": "orange"}.get(state, "gray")
 
+
+def safe_get(key, default=0):
+    return data.get(key, default)
+
+
 def update_display():
-    state = data.get("state", "IDLE")
+    state = safe_get("state", "IDLE")
 
     status_big.config(text=state, fg=get_color(state))
     state_label.config(text=f"State: {state}", fg=get_color(state))
-    temp_label.config(text=f"Temp: {data.get('temperature')}")
+    temp_label.config(text=f"Temp: {safe_get('temperature')}")
 
-    motor_label.config(text=f"Motor: {'🟢 ON' if data.get('motor') else '⚫ OFF'}")
-    conveyor_label.config(text=f"Conveyor: {'🟢 ON' if data.get('conveyor') else '⚫ OFF'}")
-    item_label.config(text=f"Item: {'📦 DETECTED' if data.get('item_detected') else '— NONE'}")
-    alarm_label.config(text=f"Alarm: {'🚨 ON' if data.get('alarm') else 'OFF'}")
+    motor_label.config(text=f"Motor: {'🟢 ON' if safe_get('motor') else '⚫ OFF'}")
+    conveyor_label.config(text=f"Conveyor: {'🟢 ON' if safe_get('conveyor') else '⚫ OFF'}")
+    item_label.config(text=f"Item: {'📦 DETECTED' if safe_get('item_detected') else '— NONE'}")
+    alarm_label.config(text=f"Alarm: {'🚨 ON' if safe_get('alarm') else 'OFF'}")
 
-    # Update KPI values
-    runtime_label.config(text=f"Run Time: {data.get('run_time')}s")
-    stoptime_label.config(text=f"Stop Time: {data.get('stop_time')}s")
-    itemcount_label.config(text=f"Items: {data.get('item_count')}")
-    accepted_label.config(text=f"Accepted: {data.get('accepted_count')}")
-    rejected_label.config(text=f"Rejected: {data.get('rejected_count')}")
-    errorcount_label.config(text=f"Errors: {data.get('error_count')}")
-    rate_label.config(text=f"Rate: {data.get('rate'):.2f} item/min")
-    errorperc_label.config(text=f"Error %: {data.get('error_percent'):.1f}%")
-    efficiency_label.config(text=f"Efficiency: {data.get('efficiency'):.1f}%")
-    yield_label.config(text=f"Yield: {data.get('yield_percent'):.1f}%")
+    # KPI
+    runtime_label.config(text=f"Run Time: {safe_get('run_time')}s")
+    stoptime_label.config(text=f"Stop Time: {safe_get('stop_time')}s")
+    itemcount_label.config(text=f"Items: {safe_get('item_count')}")
+    accepted_label.config(text=f"Accepted: {safe_get('accepted_count')}")
+    rejected_label.config(text=f"Rejected: {safe_get('rejected_count')}")
+    errorcount_label.config(text=f"Errors: {safe_get('error_count')}")
+
+    rate_label.config(text=f"Rate: {safe_get('rate'):.2f} item/min")
+    errorperc_label.config(text=f"Error %: {safe_get('error_percent'):.1f}%")
+    efficiency_label.config(text=f"Efficiency: {safe_get('efficiency'):.1f}%")
+    yield_label.config(text=f"Yield: {safe_get('yield_percent'):.1f}%")
+
+    # ✅ NEW DISPLAY
+    warning_label.config(text=f"Warnings: {safe_get('warning_count')}")
+
+    error_msg = safe_get("error_message", "")
+    if error_msg:
+        error_message_label.config(text=f"Error: {error_msg}", fg="red")
+    else:
+        error_message_label.config(text="Error: None", fg="black")
+
 
 def add_log(message):
     time_now = datetime.now().strftime("%H:%M:%S")
     log_box.insert(tk.END, f"[{time_now}] {message}\n")
     log_box.see(tk.END)
 
-# MQTT
+
+# ---------- MQTT ----------
+
 def on_connect(client, userdata, flags, rc):
-    client.subscribe(TOPIC_SUB)
     conn_label.config(text="MQTT: CONNECTED", fg="green")
+    client.subscribe(TOPIC_SUB)
+
 
 def on_message(client, userdata, msg):
     global data
-    data = json.loads(msg.payload.decode())
-    root.after(0, update_display)
+    try:
+        data = json.loads(msg.payload.decode())
+        root.after(0, update_display)
+    except:
+        print("Invalid data received")
+
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect(BROKER, PORT, 60)
-client.loop_start()
+try:
+    client.connect(BROKER, PORT, 60)
+    client.loop_start()
+except:
+    conn_label.config(text="MQTT: OFFLINE", fg="red")
 
 root.mainloop()

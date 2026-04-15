@@ -1,0 +1,1 @@
+{"state": "RUN", "temperature": 35, "motor": false, "conveyor": true, "alarm": false, "item_detected": false, "run_time": 341, "stop_time": 220, "item_count": 134, "accepted_count": 50, "rejected_count": 84, "error_count": 219, "rate": 23.577712609970675, "error_percent": 163.43283582089552, "efficiency": 60.78431372549019, "yield_percent": 37.3134328358209}
