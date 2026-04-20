@@ -11,31 +11,31 @@ TOPIC_PUB = "plc/simulation/control"
 
 data = {}
 
+# BLINK + LOG
+blink_state = False
+last_error_msg = ""
+
 # ---------- UI ----------
 root = tk.Tk()
 root.title("Industrial PLC Dashboard")
-root.geometry("450x780")
+root.geometry("600x700")
 
 # HEADER
-tk.Label(root, text="Industrial Automation System", font=("Arial", 16, "bold")).pack(pady=10)
+tk.Label(root, text="Industrial Automation System", font=("Arial", 18, "bold")).pack(pady=10)
 
 # BIG STATUS
-status_big = tk.Label(root, text="IDLE", font=("Arial", 26, "bold"))
+status_big = tk.Label(root, text="IDLE", font=("Arial", 32, "bold"))
 status_big.pack()
 
 # CONNECTION
 conn_label = tk.Label(root, text="MQTT: CONNECTING...", fg="orange")
 conn_label.pack()
 
-# ERROR MESSAGE
-error_label = tk.Label(root, text="Error: None", fg="red")
-error_label.pack()
-
-# ✅ NEW (FIX)
-warning_label = tk.Label(root, text="Warnings: 0")
+# WARNING + ERROR
+warning_label = tk.Label(root, text="Warnings: 0", font=("Arial", 12))
 warning_label.pack()
 
-error_message_label = tk.Label(root, text="Error Message: None", fg="red")
+error_message_label = tk.Label(root, text="Error: None", fg="red", font=("Arial", 12, "bold"))
 error_message_label.pack()
 
 # KPI FRAME
@@ -102,14 +102,12 @@ alarm_label.pack(anchor="w")
 frame_controls = tk.LabelFrame(root, text="Controls", padx=10, pady=5)
 frame_controls.pack(fill="x", padx=10, pady=8)
 
-
 def send_command(cmd):
     try:
         client.publish(TOPIC_PUB, cmd)
         add_log(f"✔ Command Sent: {cmd}")
     except:
         add_log("⚠ MQTT not connected")
-
 
 tk.Button(frame_controls, text="START", bg="green", fg="white", command=lambda: send_command("START")).pack(fill="x", pady=2)
 tk.Button(frame_controls, text="STOP", bg="orange", command=lambda: send_command("STOP")).pack(fill="x", pady=2)
@@ -122,22 +120,22 @@ frame_logs.pack(fill="both", expand=True, padx=10, pady=8)
 log_box = tk.Text(frame_logs, height=10)
 log_box.pack(fill="both", expand=True)
 
-
 # ---------- FUNCTIONS ----------
 
 def get_color(state):
     return {"RUN": "green", "ERROR": "red", "STOP": "orange"}.get(state, "gray")
 
-
 def safe_get(key, default=0):
     return data.get(key, default)
 
-
 def update_display():
-    state = safe_get("state", "IDLE")
+    global blink_state, last_error_msg
 
-    status_big.config(text=state, fg=get_color(state))
-    state_label.config(text=f"State: {state}", fg=get_color(state))
+    header_state = safe_get("header_state", "IDLE")
+    real_state = safe_get("state", "IDLE")
+
+    status_big.config(text=header_state, fg=get_color(header_state))
+    state_label.config(text=f"State: {real_state}", fg=get_color(real_state))
     temp_label.config(text=f"Temp: {safe_get('temperature')}")
 
     motor_label.config(text=f"Motor: {'🟢 ON' if safe_get('motor') else '⚫ OFF'}")
@@ -145,7 +143,6 @@ def update_display():
     item_label.config(text=f"Item: {'📦 DETECTED' if safe_get('item_detected') else '— NONE'}")
     alarm_label.config(text=f"Alarm: {'🚨 ON' if safe_get('alarm') else 'OFF'}")
 
-    # KPI
     runtime_label.config(text=f"Run Time: {safe_get('run_time')}s")
     stoptime_label.config(text=f"Stop Time: {safe_get('stop_time')}s")
     itemcount_label.config(text=f"Items: {safe_get('item_count')}")
@@ -158,37 +155,50 @@ def update_display():
     efficiency_label.config(text=f"Efficiency: {safe_get('efficiency'):.1f}%")
     yield_label.config(text=f"Yield: {safe_get('yield_percent'):.1f}%")
 
-    # ✅ NEW DISPLAY
-    warning_label.config(text=f"Warnings: {safe_get('warning_count')}")
+    # 🔥 BLINKING WARNING
+    warnings = safe_get("warning_count")
+    if warnings >= 50:
+        blink_state = not blink_state
+        warning_label.config(fg="red" if blink_state else "black")
+    else:
+        warning_label.config(fg="black")
 
+    warning_label.config(text=f"Warnings: {warnings}")
+
+    # ERROR MESSAGE
     error_msg = safe_get("error_message", "")
     if error_msg:
         error_message_label.config(text=f"Error: {error_msg}", fg="red")
+
+        if error_msg != last_error_msg:
+            add_log(f"🚨 {error_msg}")
+            last_error_msg = error_msg
     else:
         error_message_label.config(text="Error: None", fg="black")
-
 
 def add_log(message):
     time_now = datetime.now().strftime("%H:%M:%S")
     log_box.insert(tk.END, f"[{time_now}] {message}\n")
     log_box.see(tk.END)
 
+# 🔥 AUTO REFRESH LOOP
+def loop():
+    update_display()
+    root.after(500, loop)
 
 # ---------- MQTT ----------
 
 def on_connect(client, userdata, flags, rc):
     conn_label.config(text="MQTT: CONNECTED", fg="green")
     client.subscribe(TOPIC_SUB)
-
+    add_log("✅ Connected to MQTT")
 
 def on_message(client, userdata, msg):
     global data
     try:
         data = json.loads(msg.payload.decode())
-        root.after(0, update_display)
     except:
         print("Invalid data received")
-
 
 client = mqtt.Client()
 client.on_connect = on_connect
@@ -199,5 +209,8 @@ try:
     client.loop_start()
 except:
     conn_label.config(text="MQTT: OFFLINE", fg="red")
+
+# START LOOP
+loop()
 
 root.mainloop()

@@ -1,0 +1,9 @@
+{
+  "temperature": {
+    "high_threshold": 60,
+    "warning_limit": 50,
+    "error_limit": 100,
+    "min_valid": -10,
+    "max_valid": 150
+  }
+}

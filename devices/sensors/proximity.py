@@ -1,9 +1,8 @@
-from devices.base.sensor_base import BaseSensor
-import random
+from lib.sensors.proximity import ProximitySensor
 
-class ProximitySensor(BaseSensor):
+class ProximityDevice:
+    def __init__(self):
+        self.sensor = ProximitySensor()
 
-    def detect(self, state=None):
-        if state == "RUN":
-            return random.choice([True, False])
-        return False
+    def detect(self, state):
+        return self.sensor.detect(state)

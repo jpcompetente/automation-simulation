@@ -1,14 +1,14 @@
-from devices.base.actuator_base import BaseActuator
+from lib.actuators.alarm import Alarm as AlarmLib
 
-class Alarm(BaseActuator):
-
+class Alarm:
     def __init__(self):
-        super().__init__("Alarm")
+        self.alarm = AlarmLib()
 
     def activate(self):
-        self._status = True
-        print("🚨 ALARM ON")
+        self.alarm.activate()
 
     def deactivate(self):
-        self._status = False
-        print("Alarm OFF")
+        self.alarm.deactivate()
+
+    def status(self):
+        return self.alarm.status()

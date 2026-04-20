@@ -1,6 +1,14 @@
-from devices.base.actuator_base import BaseActuator
+from lib.actuators.motor import Motor as MotorLib
 
-class Motor(BaseActuator):
-
+class Motor:
     def __init__(self):
-        super().__init__("Motor")
+        self.motor = MotorLib()
+
+    def start(self):
+        self.motor.start()
+
+    def stop(self):
+        self.motor.stop()
+
+    def status(self):
+        return self.motor.status()

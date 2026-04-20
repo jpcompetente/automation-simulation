@@ -1,14 +1,14 @@
-from devices.base.actuator_base import BaseActuator
+from lib.actuators.conveyor import Conveyor as ConveyorLib
 
-class Conveyor(BaseActuator):
-
+class Conveyor:
     def __init__(self):
-        super().__init__("Conveyor")
+        self.conveyor = ConveyorLib()
 
     def start(self):
-        self._status = True
-        print("Conveyor STARTED")
+        self.conveyor.start()
 
     def stop(self):
-        self._status = False
-        print("Conveyor STOPPED")
+        self.conveyor.stop()
+
+    def status(self):
+        return self.conveyor.status()

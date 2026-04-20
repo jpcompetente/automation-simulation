@@ -1,0 +1,31 @@
+{
+  "sensors": [
+    {
+      "name": "temp",
+      "module": "devices.sensors.temperature",
+      "class": "TemperatureSensor"
+    },
+    {
+      "name": "prox",
+      "module": "devices.sensors.proximity",
+      "class": "ProximityDevice"
+    }
+  ],
+  "actuators": [
+    {
+      "name": "motor",
+      "module": "devices.actuators.motor",
+      "class": "Motor"
+    },
+    {
+      "name": "conveyor",
+      "module": "devices.actuators.conveyor",
+      "class": "Conveyor"
+    },
+    {
+      "name": "alarm",
+      "module": "devices.actuators.alarm",
+      "class": "Alarm"
+    }
+  ]
+}

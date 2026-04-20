@@ -1,9 +1,8 @@
-from devices.base.sensor_base import BaseSensor
-import random
+from lib.sensors.temperature import TemperatureSensor
 
-class TemperatureSensor(BaseSensor):
+class TempSensor:
+    def __init__(self):
+        self.sensor = TemperatureSensor()
 
-    def read(self, state=None):
-        if state == "RUN":
-            return random.randint(50, 80)
-        return random.randint(20, 40)
+    def read(self, state):
+        return self.sensor.read(state)

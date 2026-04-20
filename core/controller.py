@@ -7,21 +7,18 @@ class Controller:
 
     def update(self, state, item_detected):
 
-        if state == "RUN":
-            self.conveyor.start()
-            self.alarm.deactivate()
-
-            if item_detected:
-                self.motor.start()
-            else:
-                self.motor.stop()
-
-        elif state == "ERROR":
+        # 🔴 FULL STOP ONLY HERE
+        if state == "LOCKED":
             self.motor.stop()
             self.conveyor.stop()
             self.alarm.activate()
+            return
 
+        # 🔥 ALWAYS RUN
+        self.conveyor.start()
+        self.alarm.deactivate()
+
+        if item_detected:
+            self.motor.start()
         else:
             self.motor.stop()
-            self.conveyor.stop()
-            self.alarm.deactivate()
