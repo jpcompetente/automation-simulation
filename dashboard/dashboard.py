@@ -3,7 +3,6 @@ import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
 
-# MQTT SETTINGS
 BROKER = "127.0.0.1"
 PORT = 1885
 TOPIC_SUB = "plc/simulation/data"
@@ -11,95 +10,136 @@ TOPIC_PUB = "plc/simulation/control"
 
 data = {}
 
-# BLINK + LOG
 blink_state = False
 last_error_msg = ""
 
 # ---------- UI ----------
 root = tk.Tk()
 root.title("Industrial PLC Dashboard")
-root.geometry("600x700")
+root.geometry("600x750")
 
-# HEADER
-tk.Label(root, text="Industrial Automation System", font=("Arial", 18, "bold")).pack(pady=10)
+# 🔥 SCROLLABLE
+container = tk.Frame(root)
+container.pack(fill="both", expand=True)
 
-# BIG STATUS
-status_big = tk.Label(root, text="IDLE", font=("Arial", 32, "bold"))
+canvas = tk.Canvas(container)
+scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+
+scrollable_frame = tk.Frame(canvas)
+
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+canvas.configure(yscrollcommand=scrollbar.set)
+
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# ---------- CONTENT ----------
+
+tk.Label(scrollable_frame, text="Industrial Automation System", font=("Arial", 18, "bold")).pack(pady=10)
+
+status_big = tk.Label(scrollable_frame, text="IDLE", font=("Arial", 32, "bold"))
 status_big.pack()
 
-# CONNECTION
-conn_label = tk.Label(root, text="MQTT: CONNECTING...", fg="orange")
+conn_label = tk.Label(scrollable_frame, text="MQTT: CONNECTING...", fg="orange")
 conn_label.pack()
 
-# WARNING + ERROR
-warning_label = tk.Label(root, text="Warnings: 0", font=("Arial", 12))
+warning_label = tk.Label(scrollable_frame, text="Warnings: 0")
 warning_label.pack()
 
-error_message_label = tk.Label(root, text="Error: None", fg="red", font=("Arial", 12, "bold"))
+error_message_label = tk.Label(scrollable_frame, text="Error: None", fg="red")
 error_message_label.pack()
 
-# KPI FRAME
-frame_kpi = tk.LabelFrame(root, text="KPI", padx=10, pady=5)
+# KPI
+frame_kpi = tk.LabelFrame(scrollable_frame, text="KPI")
 frame_kpi.pack(fill="x", padx=10, pady=8)
 
-runtime_label = tk.Label(frame_kpi, text="Run Time: 0s")
+runtime_label = tk.Label(frame_kpi)
 runtime_label.pack(anchor="w")
 
-stoptime_label = tk.Label(frame_kpi, text="Stop Time: 0s")
+stoptime_label = tk.Label(frame_kpi)
 stoptime_label.pack(anchor="w")
 
-itemcount_label = tk.Label(frame_kpi, text="Items: 0")
+itemcount_label = tk.Label(frame_kpi)
 itemcount_label.pack(anchor="w")
 
-accepted_label = tk.Label(frame_kpi, text="Accepted: 0")
+accepted_label = tk.Label(frame_kpi)
 accepted_label.pack(anchor="w")
 
-rejected_label = tk.Label(frame_kpi, text="Rejected: 0")
+rejected_label = tk.Label(frame_kpi)
 rejected_label.pack(anchor="w")
 
-errorcount_label = tk.Label(frame_kpi, text="Errors: 0")
+errorcount_label = tk.Label(frame_kpi)
 errorcount_label.pack(anchor="w")
 
-rate_label = tk.Label(frame_kpi, text="Rate: 0 item/min")
+rate_label = tk.Label(frame_kpi)
 rate_label.pack(anchor="w")
 
-errorperc_label = tk.Label(frame_kpi, text="Error %: 0%")
+errorperc_label = tk.Label(frame_kpi)
 errorperc_label.pack(anchor="w")
 
-efficiency_label = tk.Label(frame_kpi, text="Efficiency: 0%")
+efficiency_label = tk.Label(frame_kpi)
 efficiency_label.pack(anchor="w")
 
-yield_label = tk.Label(frame_kpi, text="Yield: 0%")
+yield_label = tk.Label(frame_kpi)
 yield_label.pack(anchor="w")
 
-# SYSTEM STATUS
-frame_status = tk.LabelFrame(root, text="System Status", padx=10, pady=5)
+# STATUS
+frame_status = tk.LabelFrame(scrollable_frame, text="System Status")
 frame_status.pack(fill="x", padx=10, pady=8)
 
-state_label = tk.Label(frame_status, text="State: IDLE", font=("Arial", 14))
+state_label = tk.Label(frame_status, font=("Arial", 12, "bold"))
 state_label.pack(anchor="w")
 
-temp_label = tk.Label(frame_status, text="Temp: 0")
+temp_label = tk.Label(frame_status)
 temp_label.pack(anchor="w")
 
 # DEVICES
-frame_devices = tk.LabelFrame(root, text="Devices", padx=10, pady=5)
+frame_devices = tk.LabelFrame(scrollable_frame, text="Devices")
 frame_devices.pack(fill="x", padx=10, pady=8)
 
-motor_label = tk.Label(frame_devices, text="Motor: OFF")
+motor_label = tk.Label(frame_devices)
 motor_label.pack(anchor="w")
 
-conveyor_label = tk.Label(frame_devices, text="Conveyor: OFF")
+conveyor_label = tk.Label(frame_devices)
 conveyor_label.pack(anchor="w")
 
-item_label = tk.Label(frame_devices, text="Item: NONE")
+item_label = tk.Label(frame_devices)
 item_label.pack(anchor="w")
 
-alarm_label = tk.Label(frame_devices, text="Alarm: OFF")
+alarm_label = tk.Label(frame_devices)
 alarm_label.pack(anchor="w")
 
+# ACTIVE ALARMS
+frame_alarms = tk.LabelFrame(scrollable_frame, text="Active Alarms")
+frame_alarms.pack(fill="x", padx=10, pady=8)
+
+alarm_list_label = tk.Label(frame_alarms, text="No active alarms", fg="green", justify="left")
+alarm_list_label.pack(anchor="w")
+
+# 🔥 ACK BUTTON
+def ack_all():
+    try:
+        client.publish(TOPIC_PUB, "ACK")
+        add_log("✔ ACK sent")
+    except:
+        add_log("⚠ MQTT not connected")
+
+tk.Button(frame_alarms, text="ACK ALL", bg="yellow", command=ack_all).pack(fill="x", pady=3)
+
+# HISTORY
+frame_history = tk.LabelFrame(scrollable_frame, text="Alarm History")
+frame_history.pack(fill="x", padx=10, pady=8)
+
+history_box = tk.Text(frame_history, height=5)
+history_box.pack(fill="x")
+
 # CONTROLS
-frame_controls = tk.LabelFrame(root, text="Controls", padx=10, pady=5)
+frame_controls = tk.LabelFrame(scrollable_frame, text="Controls")
 frame_controls.pack(fill="x", padx=10, pady=8)
 
 def send_command(cmd):
@@ -114,34 +154,44 @@ tk.Button(frame_controls, text="STOP", bg="orange", command=lambda: send_command
 tk.Button(frame_controls, text="RESET", bg="gray", fg="white", command=lambda: send_command("RESET")).pack(fill="x", pady=2)
 
 # LOGS
-frame_logs = tk.LabelFrame(root, text="System Logs", padx=10, pady=5)
-frame_logs.pack(fill="both", expand=True, padx=10, pady=8)
+frame_logs = tk.LabelFrame(scrollable_frame, text="System Logs")
+frame_logs.pack(fill="x", padx=10, pady=8)
 
-log_box = tk.Text(frame_logs, height=10)
-log_box.pack(fill="both", expand=True)
+log_box = tk.Text(frame_logs, height=8)
+log_box.pack(fill="x")
 
 # ---------- FUNCTIONS ----------
 
 def get_color(state):
-    return {"RUN": "green", "ERROR": "red", "STOP": "orange"}.get(state, "gray")
+    return {
+        "RUN": "green",
+        "ERROR": "red",
+        "STOP": "orange"
+    }.get(state, "gray")
+
 
 def safe_get(key, default=0):
     return data.get(key, default)
 
-def update_display():
-    global blink_state, last_error_msg
 
+def update_display():
     header_state = safe_get("header_state", "IDLE")
     real_state = safe_get("state", "IDLE")
 
     status_big.config(text=header_state, fg=get_color(header_state))
-    state_label.config(text=f"State: {real_state}", fg=get_color(real_state))
+
+    # 🔥 FIXED STATE COLOR
+    state_label.config(
+        text=f"State: {real_state}",
+        fg=get_color(real_state)
+    )
+
     temp_label.config(text=f"Temp: {safe_get('temperature')}")
 
-    motor_label.config(text=f"Motor: {'🟢 ON' if safe_get('motor') else '⚫ OFF'}")
-    conveyor_label.config(text=f"Conveyor: {'🟢 ON' if safe_get('conveyor') else '⚫ OFF'}")
-    item_label.config(text=f"Item: {'📦 DETECTED' if safe_get('item_detected') else '— NONE'}")
-    alarm_label.config(text=f"Alarm: {'🚨 ON' if safe_get('alarm') else 'OFF'}")
+    motor_label.config(text=f"Motor: {'ON' if safe_get('motor') else 'OFF'}")
+    conveyor_label.config(text=f"Conveyor: {'ON' if safe_get('conveyor') else 'OFF'}")
+    item_label.config(text=f"Item: {'DETECTED' if safe_get('item_detected') else 'NONE'}")
+    alarm_label.config(text=f"Alarm: {'ON' if safe_get('alarm') else 'OFF'}")
 
     runtime_label.config(text=f"Run Time: {safe_get('run_time')}s")
     stoptime_label.config(text=f"Stop Time: {safe_get('stop_time')}s")
@@ -155,62 +205,66 @@ def update_display():
     efficiency_label.config(text=f"Efficiency: {safe_get('efficiency'):.1f}%")
     yield_label.config(text=f"Yield: {safe_get('yield_percent'):.1f}%")
 
-    # 🔥 BLINKING WARNING
-    warnings = safe_get("warning_count")
-    if warnings >= 50:
-        blink_state = not blink_state
-        warning_label.config(fg="red" if blink_state else "black")
+    warning_label.config(text=f"Warnings: {safe_get('warning_count')}")
+    error_message_label.config(text=f"Error: {safe_get('error_message')}")
+
+    # ACTIVE ALARMS
+    alarms = data.get("alarms", [])
+    if alarms:
+        txt = ""
+        for a in alarms:
+            icon = "⚠" if a.get("ack") else "🚨"
+            txt += f"{icon} {a['message']} ({a['priority']})\n"
+
+        color = "orange" if all(a.get("ack") for a in alarms) else "red"
+        alarm_list_label.config(text=txt, fg=color)
     else:
-        warning_label.config(fg="black")
+        alarm_list_label.config(text="No active alarms", fg="green")
 
-    warning_label.config(text=f"Warnings: {warnings}")
+    # HISTORY
+    history = data.get("alarm_history", [])
+    new_text = ""
 
-    # ERROR MESSAGE
-    error_msg = safe_get("error_message", "")
-    if error_msg:
-        error_message_label.config(text=f"Error: {error_msg}", fg="red")
+    for a in history[-10:]:
+        icon = "⚠" if a.get("ack") else "🚨"
+        new_text += f"[{a['timestamp']}] {icon} {a['message']}\n"
 
-        if error_msg != last_error_msg:
-            add_log(f"🚨 {error_msg}")
-            last_error_msg = error_msg
-    else:
-        error_message_label.config(text="Error: None", fg="black")
+    if history_box.get(1.0, tk.END) != new_text:
+        history_box.delete(1.0, tk.END)
+        history_box.insert(tk.END, new_text)
+
 
 def add_log(message):
-    time_now = datetime.now().strftime("%H:%M:%S")
-    log_box.insert(tk.END, f"[{time_now}] {message}\n")
+    t = datetime.now().strftime("%H:%M:%S")
+    log_box.insert(tk.END, f"[{t}] {message}\n")
     log_box.see(tk.END)
 
-# 🔥 AUTO REFRESH LOOP
+
 def loop():
     update_display()
     root.after(500, loop)
 
-# ---------- MQTT ----------
 
+# MQTT
 def on_connect(client, userdata, flags, rc):
     conn_label.config(text="MQTT: CONNECTED", fg="green")
     client.subscribe(TOPIC_SUB)
-    add_log("✅ Connected to MQTT")
+
 
 def on_message(client, userdata, msg):
     global data
     try:
         data = json.loads(msg.payload.decode())
     except:
-        print("Invalid data received")
+        pass
+
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-try:
-    client.connect(BROKER, PORT, 60)
-    client.loop_start()
-except:
-    conn_label.config(text="MQTT: OFFLINE", fg="red")
+client.connect(BROKER, PORT, 60)
+client.loop_start()
 
-# START LOOP
 loop()
-
 root.mainloop()

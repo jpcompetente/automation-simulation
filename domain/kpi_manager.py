@@ -13,14 +13,15 @@ class KPIManager:
     def reset(self):
         self.__init__()
 
-    def update(self, state, item_detected, error_locked):
-        # TIME
-        if not error_locked:
+    def update(self, state, item_detected):
+
+        # 🔥 FIXED TIME LOGIC
+        if state == "RUN":
             self.run_time += 1
         else:
             self.stop_time += 1
 
-        # ITEM
+        # ---------- ITEM LOGIC ----------
         if item_detected and not self.last_item:
             self.item_count += 1
 

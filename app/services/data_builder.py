@@ -1,5 +1,5 @@
 def build_payload(state, header_state, temperature, motor, conveyor, alarm,
-                  item_detected, kpi, metrics, error_manager):
+                  item_detected, kpi, metrics, error_manager, ctx):
 
     return {
         "state": state,
@@ -24,5 +24,9 @@ def build_payload(state, header_state, temperature, motor, conveyor, alarm,
         "yield_percent": metrics["yield_percent"],
 
         "error_message": error_manager.message,
-        "error_locked": error_manager.locked
+        "error_locked": error_manager.locked,
+
+        # 🔥 STEP 5 — ADD ALARMS
+        "alarms": ctx.alarm_manager.get_active(),
+        "alarm_history": ctx.alarm_manager.get_history()
     }

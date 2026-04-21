@@ -19,6 +19,7 @@ from app.services.error_manager import ErrorManager
 from app.services.data_builder import build_payload
 from app.services.decision_engine import DecisionEngine
 from app.services.config_service import ConfigService
+from app.services.alarm_manager import AlarmManager
 from app.system_context import SystemContext
 
 
@@ -55,9 +56,10 @@ def run_system():
     ctx.kpi = KPIManager()
     ctx.error = ErrorManager()
 
-    # 🔥 CONFIG + ENGINE
+    # 🔥 CONFIG + ENGINE + ALARM
     ctx.config = ConfigService()
     ctx.engine = DecisionEngine(ctx.config)
+    ctx.alarm_manager = AlarmManager()
 
     # ---------- MQTT ----------
     mqtt_client = MQTTClient(
@@ -74,7 +76,12 @@ def run_system():
             ctx.kpi.reset()
             ctx.error.reset()
             ctx.alarm.deactivate()
+            ctx.alarm_manager.clear_all()
             print("🔄 SYSTEM RESET → WAITING FOR START")
+
+        elif ctx.command == "ACK":
+            ctx.alarm_manager.acknowledge_all()
+            print("✅ ALL ALARMS ACKNOWLEDGED")
 
     mqtt_client.start()
     mqtt_client.client.on_message = on_message
@@ -84,7 +91,9 @@ def run_system():
     # ---------- LOOP ----------
     while True:
 
+        # 🔥 CONFIG RELOAD
         ctx.config.reload_if_changed()
+
         ctx.watchdog.feed()
 
         state = ctx.state_machine.get_state()
@@ -112,21 +121,22 @@ def run_system():
             ctx.command = ""
 
         # ---------- KPI ----------
-        ctx.kpi.update(state, item_detected, ctx.error.locked)
+        ctx.kpi.update(state, item_detected)
         metrics = ctx.kpi.compute()
 
-        # ---------- HEADER FIX (CONFIG-DRIVEN) ----------
+        # ---------- HEADER FIX ----------
         temp_cfg = ctx.config.get("temperature")
 
         header_state = state
         if not ctx.error.locked and ctx.kpi.error_count < temp_cfg["warning_limit"] and state == "ERROR":
             header_state = "RUN"
 
-        # ---------- BUILD DATA ----------
+        # ---------- BUILD PAYLOAD ----------
         data = build_payload(
             state, header_state, temperature,
             ctx.motor, ctx.conveyor, ctx.alarm,
-            item_detected, ctx.kpi, metrics, ctx.error
+            item_detected, ctx.kpi, metrics, ctx.error,
+            ctx  # 🔥 includes alarms + history
         )
 
         mqtt_client.send_message(json.dumps(data))

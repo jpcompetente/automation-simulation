@@ -2,7 +2,6 @@ import json
 import os
 import time
 
-
 class ConfigService:
 
     def __init__(self):
