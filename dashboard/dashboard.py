@@ -3,8 +3,8 @@ import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
 
-BROKER = "127.0.0.1"
-PORT = 1885
+from settings import BROKER, PORT
+
 TOPIC_SUB = "plc/simulation/data"
 TOPIC_PUB = "plc/simulation/control"
 

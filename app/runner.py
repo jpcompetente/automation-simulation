@@ -23,10 +23,10 @@ from app.services.alarm_manager import AlarmManager
 from app.system_context import SystemContext
 
 
-BROKER = "127.0.0.1"
-PORT = 1885
-TOPIC_PUB = "plc/simulation/data"
-TOPIC_SUB = "plc/simulation/control"
+from settings import BROKER, PORT, TOPIC_PUB, TOPIC_SUB
+
+
+
 
 
 def run_system():
@@ -146,3 +146,6 @@ def run_system():
             print("⚠ SYSTEM NOT RESPONDING")
 
         time.sleep(1)
+
+if __name__ == "__main__":
+    run_system()
