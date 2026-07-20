@@ -7,7 +7,7 @@ class AlarmManager:
         self.active = []
         self.history = []
 
-    # 🔥 ADD NEW ALARM (NO DUPLICATE CHECK = MULTIPLE EVENTS)
+    #  ADD NEW ALARM (NO DUPLICATE CHECK = MULTIPLE EVENTS)
     def trigger(self, alarm_id, message, priority="LOW"):
         for alarm in self.active:
             if alarm["id"] == alarm_id:
@@ -23,7 +23,7 @@ class AlarmManager:
 
         self.active.append(alarm)
 
-    # 🔥 ACK ALL → MOVE TO HISTORY
+    #  ACK ALL → MOVE TO HISTORY
     def acknowledge_all(self):
 
         for alarm in self.active:
@@ -32,15 +32,15 @@ class AlarmManager:
 
         self.active.clear()
 
-    # 🔥 GET ACTIVE
+    #  GET ACTIVE
     def get_active(self):
         return self.active
 
-    # 🔥 GET HISTORY
+    #  GET HISTORY
     def get_history(self):
         return self.history
 
-    # 🔥 RESET SYSTEM
+    #  RESET SYSTEM
     def clear_all(self):
         self.active.clear()
         self.history.clear()

@@ -10,21 +10,21 @@ class DecisionEngine:
 
         config = self.config_service.get("temperature")
 
-        # 🔴 INVALID SENSOR
+        # [INVALID] INVALID SENSOR
         if temperature < config["min_valid"] or temperature > config["max_valid"]:
             return {"state": "ERROR", "message": "INVALID SENSOR DATA"}
 
-        # 🔒 LOCKED SYSTEM
+        # [LOCKED] LOCKED SYSTEM
         if ctx.error.locked:
             return {"state": "ERROR", "message": "LOCKED - 100 Errors Reached"}
 
-        # 🌡 HIGH TEMP
+        # [TEMP] HIGH TEMP
         if temperature > config["high_threshold"]:
 
             ctx.kpi.error_count += 1
             ctx.kpi.warning_count += 1
 
-            # 🔥 MULTIPLE ALARMS (UNIQUE ID)
+            #  MULTIPLE ALARMS (UNIQUE ID)
             alarm_id = "TEMP_HIGH"
 
             ctx.alarm_manager.trigger(

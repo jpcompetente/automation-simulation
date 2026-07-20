@@ -56,7 +56,7 @@ def run_system():
     ctx.kpi = KPIManager()
     ctx.error = ErrorManager()
 
-    # 🔥 CONFIG + ENGINE + ALARM
+    #  CONFIG + ENGINE + ALARM
     ctx.config = ConfigService()
     ctx.engine = DecisionEngine(ctx.config)
     ctx.alarm_manager = AlarmManager()
@@ -77,11 +77,11 @@ def run_system():
             ctx.error.reset()
             ctx.alarm.deactivate()
             ctx.alarm_manager.clear_all()
-            print("🔄 SYSTEM RESET → WAITING FOR START")
+            print("[RELOAD] SYSTEM RESET → WAITING FOR START")
 
         elif ctx.command == "ACK":
             ctx.alarm_manager.acknowledge_all()
-            print("✅ ALL ALARMS ACKNOWLEDGED")
+            print("[OK] ALL ALARMS ACKNOWLEDGED")
 
     mqtt_client.start()
     mqtt_client.client.on_message = on_message
@@ -91,7 +91,7 @@ def run_system():
     # ---------- LOOP ----------
     while True:
 
-        # 🔥 CONFIG RELOAD
+        #  CONFIG RELOAD
         ctx.config.reload_if_changed()
 
         ctx.watchdog.feed()
@@ -136,14 +136,14 @@ def run_system():
             state, header_state, temperature,
             ctx.motor, ctx.conveyor, ctx.alarm,
             item_detected, ctx.kpi, metrics, ctx.error,
-            ctx  # 🔥 includes alarms + history
+            ctx  #  includes alarms + history
         )
 
         mqtt_client.send_message(json.dumps(data))
 
         # ---------- WATCHDOG ----------
         if not ctx.watchdog.is_alive():
-            print("⚠ SYSTEM NOT RESPONDING")
+            print("[WARNING] SYSTEM NOT RESPONDING")
 
         time.sleep(1)
 

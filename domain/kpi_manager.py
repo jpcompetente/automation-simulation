@@ -15,7 +15,7 @@ class KPIManager:
 
     def update(self, state, item_detected):
 
-        # 🔥 FIXED TIME LOGIC
+        #  FIXED TIME LOGIC
         if state == "RUN":
             self.run_time += 1
         else:

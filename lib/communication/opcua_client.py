@@ -11,7 +11,7 @@ class OPCUAClient:
         if not self.connected:
             raise Exception("OPCUA not connected")
 
-        # 🔥 placeholder
+        #  placeholder
         return None
 
     def write(self, node, value):

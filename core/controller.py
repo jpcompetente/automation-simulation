@@ -7,14 +7,14 @@ class Controller:
 
     def update(self, state, item_detected):
 
-        # 🔴 FULL STOP ONLY HERE
+        # [INVALID] FULL STOP ONLY HERE
         if state == "LOCKED":
             self.motor.stop()
             self.conveyor.stop()
             self.alarm.activate()
             return
 
-        # 🔥 ALWAYS RUN
+        #  ALWAYS RUN
         self.conveyor.start()
         self.alarm.deactivate()
 

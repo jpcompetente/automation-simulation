@@ -7,7 +7,7 @@ def load_devices_from_config(devices):
     Load sensors and actuators from config/devices.json
     """
 
-    # 🔥 GET PROJECT ROOT (IMPORTANT AFTER REFACTOR)
+    # GET PROJECT ROOT (IMPORTANT AFTER REFACTOR)
     BASE_DIR = os.path.dirname(
         os.path.dirname(
             os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,7 @@ def load_devices_from_config(devices):
 
     config_path = os.path.join(BASE_DIR, "config", "devices.json")
 
-    # 🔍 OPTIONAL DEBUG (pwede mo i-uncomment kung gusto mo makita path)
+    # OPTIONAL DEBUG (pwede mo i-uncomment kung gusto mo makita path)
     # print("Loading config from:", config_path)
 
     # ---------- LOAD CONFIG ----------
@@ -30,7 +30,7 @@ def load_devices_from_config(devices):
             cls = getattr(module, s["class"])
             devices.add_sensor(s["name"], cls())
         except Exception as e:
-            print(f"❌ Error loading sensor {s['name']}: {e}")
+            print(f"[ERROR] Error loading sensor {s['name']}: {e}")
 
     # ---------- LOAD ACTUATORS ----------
     for a in config.get("actuators", []):
@@ -39,4 +39,4 @@ def load_devices_from_config(devices):
             cls = getattr(module, a["class"])
             devices.add_actuator(a["name"], cls())
         except Exception as e:
-            print(f"❌ Error loading actuator {a['name']}: {e}")
+            print(f"[ERROR] Error loading actuator {a['name']}: {e}")

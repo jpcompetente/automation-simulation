@@ -18,7 +18,7 @@ root = tk.Tk()
 root.title("Industrial PLC Dashboard")
 root.geometry("600x750")
 
-# 🔥 SCROLLABLE
+#  SCROLLABLE
 container = tk.Frame(root)
 container.pack(fill="both", expand=True)
 
@@ -121,13 +121,13 @@ frame_alarms.pack(fill="x", padx=10, pady=8)
 alarm_list_label = tk.Label(frame_alarms, text="No active alarms", fg="green", justify="left")
 alarm_list_label.pack(anchor="w")
 
-# 🔥 ACK BUTTON
+#  ACK BUTTON
 def ack_all():
     try:
         client.publish(TOPIC_PUB, "ACK")
-        add_log("✔ ACK sent")
+        add_log("[OK] ACK sent")
     except:
-        add_log("⚠ MQTT not connected")
+        add_log("[WARNING] MQTT not connected")
 
 tk.Button(frame_alarms, text="ACK ALL", bg="yellow", command=ack_all).pack(fill="x", pady=3)
 
@@ -145,9 +145,9 @@ frame_controls.pack(fill="x", padx=10, pady=8)
 def send_command(cmd):
     try:
         client.publish(TOPIC_PUB, cmd)
-        add_log(f"✔ Command Sent: {cmd}")
+        add_log(f"[OK] Command Sent: {cmd}")
     except:
-        add_log("⚠ MQTT not connected")
+        add_log("[WARNING] MQTT not connected")
 
 tk.Button(frame_controls, text="START", bg="green", fg="white", command=lambda: send_command("START")).pack(fill="x", pady=2)
 tk.Button(frame_controls, text="STOP", bg="orange", command=lambda: send_command("STOP")).pack(fill="x", pady=2)
@@ -180,7 +180,7 @@ def update_display():
 
     status_big.config(text=header_state, fg=get_color(header_state))
 
-    # 🔥 FIXED STATE COLOR
+    #  FIXED STATE COLOR
     state_label.config(
         text=f"State: {real_state}",
         fg=get_color(real_state)
@@ -213,7 +213,7 @@ def update_display():
     if alarms:
         txt = ""
         for a in alarms:
-            icon = "⚠" if a.get("ack") else "🚨"
+            icon = "[WARNING]" if a.get("ack") else "[ALERT]"
             txt += f"{icon} {a['message']} ({a['priority']})\n"
 
         color = "orange" if all(a.get("ack") for a in alarms) else "red"
@@ -226,7 +226,7 @@ def update_display():
     new_text = ""
 
     for a in history[-10:]:
-        icon = "⚠" if a.get("ack") else "🚨"
+        icon = "[WARNING]" if a.get("ack") else "[ALERT]"
         new_text += f"[{a['timestamp']}] {icon} {a['message']}\n"
 
     if history_box.get(1.0, tk.END) != new_text:

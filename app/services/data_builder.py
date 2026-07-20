@@ -26,7 +26,7 @@ def build_payload(state, header_state, temperature, motor, conveyor, alarm,
         "error_message": error_manager.message,
         "error_locked": error_manager.locked,
 
-        # 🔥 STEP 5 — ADD ALARMS
+        #  STEP 5 — ADD ALARMS
         "alarms": ctx.alarm_manager.get_active(),
         "alarm_history": ctx.alarm_manager.get_history()
     }

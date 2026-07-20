@@ -12,7 +12,7 @@ class ModbusClient:
         if not self.connected:
             raise Exception("Modbus not connected")
 
-        # 🔥 placeholder (simulate)
+        #  placeholder (simulate)
         return 0
 
     def write_register(self, address, value):

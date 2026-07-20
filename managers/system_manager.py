@@ -4,11 +4,11 @@ class SystemManager:
         self.controller = controller
 
     def process(self, command, temperature, item_detected, high_threshold=60):
-        # 🔥 STATE TRANSITION
+        #  STATE TRANSITION
         state = self.sm.transition(command, temperature, high_threshold)
         self.sm.state = state
 
-        # 🔥 CONTROL DEVICES
+        #  CONTROL DEVICES
         self.controller.update(state, item_detected)
 
         return state

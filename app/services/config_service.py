@@ -27,7 +27,7 @@ class ConfigService:
         current_modified = os.path.getmtime(self.path)
 
         if current_modified != self.last_modified:
-            print("🔄 Config reloaded!")
+            print("[RELOAD] Config reloaded!")
             self.load()
 
     def get(self, key):

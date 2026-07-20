@@ -4,12 +4,12 @@ import os
 
 def load_devices_from_config(devices):
 
-    # 🔥 FIX: GET PROJECT ROOT PATH
+    #  FIX: GET PROJECT ROOT PATH
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     config_path = os.path.join(BASE_DIR, "config", "devices.json")
 
-    # 🔍 DEBUG (optional)
+    # [DEBUG] DEBUG (optional)
     # print("Loading config from:", config_path)
 
     with open(config_path, "r") as f:
