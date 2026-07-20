@@ -25,7 +25,7 @@ class DecisionEngine:
             ctx.kpi.warning_count += 1
 
             # 🔥 MULTIPLE ALARMS (UNIQUE ID)
-            alarm_id = f"TEMP_HIGH_{time.time()}"
+            alarm_id = "TEMP_HIGH"
 
             ctx.alarm_manager.trigger(
                 alarm_id,

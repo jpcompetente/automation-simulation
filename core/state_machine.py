@@ -10,7 +10,7 @@ class StateMachine:
     def get_state(self):
         return self.state
 
-    def transition(self, command, temperature=None):
+    def transition(self, command, temperature=None, high_threshold=60):
 
         # 🔥 GLOBAL RESET (works in ANY state)
         if command == "RESET":
@@ -22,7 +22,7 @@ class StateMachine:
             return self.state
 
         # 🌡 TEMPERATURE ERROR
-        if temperature is not None and temperature > 60:
+        if temperature is not None and temperature > high_threshold:
             self.state = self.ERROR
             return self.state
 

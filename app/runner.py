@@ -100,6 +100,7 @@ def run_system():
 
         temperature = ctx.temp.read(state)
         item_detected = ctx.prox.detect(state)
+        temp_cfg = ctx.config.get("temperature")
 
         # ---------- DECISION ENGINE ----------
         decision = ctx.engine.evaluate(ctx, temperature, item_detected)
@@ -117,7 +118,7 @@ def run_system():
         else:
             ctx.error.clear()
 
-            state = ctx.system.process(ctx.command, temperature, item_detected)
+            state = ctx.system.process(ctx.command, temperature, item_detected, temp_cfg["high_threshold"])
             ctx.command = ""
 
         # ---------- KPI ----------
@@ -125,7 +126,6 @@ def run_system():
         metrics = ctx.kpi.compute()
 
         # ---------- HEADER FIX ----------
-        temp_cfg = ctx.config.get("temperature")
 
         header_state = state
         if not ctx.error.locked and ctx.kpi.error_count < temp_cfg["warning_limit"] and state == "ERROR":

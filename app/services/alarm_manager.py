@@ -9,6 +9,9 @@ class AlarmManager:
 
     # 🔥 ADD NEW ALARM (NO DUPLICATE CHECK = MULTIPLE EVENTS)
     def trigger(self, alarm_id, message, priority="LOW"):
+        for alarm in self.active:
+            if alarm["id"] == alarm_id:
+                return
 
         alarm = {
             "id": alarm_id,
