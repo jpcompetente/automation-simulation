@@ -33,10 +33,10 @@ class DecisionEngine:
                 priority="HIGH"
             )
 
-            msg = "HIGH TEMPERATURE DETECTED"
+            msg = "WARNING: High Temperature"
 
             if ctx.kpi.warning_count >= config["warning_limit"]:
-                msg = "WARNING: High Temperature"
+                msg = "CRITICAL: HIGH TEMPERATURE DETECTED"
 
             if ctx.kpi.error_count >= config["error_limit"]:
                 ctx.error.lock()
