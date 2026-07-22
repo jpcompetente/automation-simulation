@@ -21,6 +21,7 @@ from app.services.decision_engine import DecisionEngine
 from app.services.config_service import ConfigService
 from app.services.alarm_manager import AlarmManager
 from app.system_context import SystemContext
+from app.services.config_validator import validate_logic_config, validate_devices_config
 
 
 from settings import BROKER, PORT, TOPIC_PUB, TOPIC_SUB
@@ -35,6 +36,13 @@ def run_system():
     ctx = SystemContext()
 
     # ---------- DEVICES ----------
+    # ---------- CONFIG VALIDATION ----------
+    import json
+    with open("config/devices.json") as f:
+        validate_devices_config(json.load(f))
+    with open("config/logic_config.json") as f:
+        validate_logic_config(json.load(f))
+
     ctx.devices = DeviceManager()
     load_devices_from_config(ctx.devices)
 
