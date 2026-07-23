@@ -1,4 +1,4 @@
-import time
+﻿import time
 import json
 
 from core.state_machine import StateMachine
@@ -23,11 +23,7 @@ from app.services.alarm_manager import AlarmManager
 from app.system_context import SystemContext
 from app.services.config_validator import validate_logic_config, validate_devices_config
 
-
 from settings import BROKER, PORT, TOPIC_PUB, TOPIC_SUB
-
-
-
 
 
 def run_system():
@@ -35,14 +31,13 @@ def run_system():
     # ---------- CONTEXT ----------
     ctx = SystemContext()
 
-    # ---------- DEVICES ----------
     # ---------- CONFIG VALIDATION ----------
-    import json
     with open("config/devices.json") as f:
         validate_devices_config(json.load(f))
     with open("config/logic_config.json") as f:
         validate_logic_config(json.load(f))
 
+    # ---------- DEVICES ----------
     ctx.devices = DeviceManager()
     load_devices_from_config(ctx.devices)
 
@@ -64,7 +59,7 @@ def run_system():
     ctx.kpi = KPIManager()
     ctx.error = ErrorManager()
 
-    #  CONFIG + ENGINE + ALARM
+    # CONFIG + ENGINE + ALARM
     ctx.config = ConfigService()
     ctx.engine = DecisionEngine(ctx.config)
     ctx.alarm_manager = AlarmManager()
@@ -85,11 +80,11 @@ def run_system():
             ctx.error.reset()
             ctx.alarm.deactivate()
             ctx.alarm_manager.clear_all()
-            print("[RELOAD] SYSTEM RESET → WAITING FOR START")
+            print("SYSTEM RESET -> WAITING FOR START")
 
         elif ctx.command == "ACK":
             ctx.alarm_manager.acknowledge_all()
-            print("[OK] ALL ALARMS ACKNOWLEDGED")
+            print("ALL ALARMS ACKNOWLEDGED")
 
     mqtt_client.start()
     mqtt_client.client.on_message = on_message
@@ -97,63 +92,76 @@ def run_system():
     print("=== RUNNING SYSTEM ===")
 
     # ---------- LOOP ----------
-    while True:
+    try:
+        while True:
 
-        #  CONFIG RELOAD
-        ctx.config.reload_if_changed()
+            # CONFIG RELOAD
+            ctx.config.reload_if_changed()
 
-        ctx.watchdog.feed()
+            ctx.watchdog.feed()
 
-        state = ctx.state_machine.get_state()
+            state = ctx.state_machine.get_state()
 
-        temperature = ctx.temp.read(state)
-        item_detected = ctx.prox.detect(state)
-        temp_cfg = ctx.config.get("temperature")
+            temperature = ctx.temp.read(state)
+            item_detected = ctx.prox.detect(state)
+            temp_cfg = ctx.config.get("temperature")
 
-        # ---------- DECISION ENGINE ----------
-        decision = ctx.engine.evaluate(ctx, temperature, item_detected)
+            # ---------- DECISION ENGINE ----------
+            decision = ctx.engine.evaluate(ctx, temperature, item_detected)
 
-        if decision["state"] == "ERROR":
+            if decision["state"] == "ERROR":
 
-            state = "ERROR"
-            ctx.error.set_error(decision["message"], ctx.logger)
+                state = "ERROR"
+                ctx.error.set_error(decision["message"], ctx.logger)
 
-            ctx.motor.stop()
-            ctx.conveyor.stop()
-            ctx.alarm.activate()
-            item_detected = False
+                ctx.motor.stop()
+                ctx.conveyor.stop()
+                ctx.alarm.activate()
+                item_detected = False
 
-        else:
-            ctx.error.clear()
+            else:
+                ctx.error.clear()
 
-            state = ctx.system.process(ctx.command, temperature, item_detected, temp_cfg["high_threshold"])
-            ctx.command = ""
+                state = ctx.system.process(ctx.command, temperature, item_detected, temp_cfg["high_threshold"])
+                ctx.command = ""
 
-        # ---------- KPI ----------
-        ctx.kpi.update(state, item_detected)
-        metrics = ctx.kpi.compute()
+            # ---------- KPI ----------
+            ctx.kpi.update(state, item_detected)
+            metrics = ctx.kpi.compute()
 
-        # ---------- HEADER FIX ----------
+            # ---------- HEADER FIX ----------
+            header_state = state
+            if not ctx.error.locked and ctx.kpi.error_count < temp_cfg["warning_limit"] and state == "ERROR":
+                header_state = "RUN"
 
-        header_state = state
-        if not ctx.error.locked and ctx.kpi.error_count < temp_cfg["warning_limit"] and state == "ERROR":
-            header_state = "RUN"
+            # ---------- BUILD PAYLOAD ----------
+            data = build_payload(
+                state, header_state, temperature,
+                ctx.motor, ctx.conveyor, ctx.alarm,
+                item_detected, ctx.kpi, metrics, ctx.error,
+                ctx  # includes alarms + history
+            )
 
-        # ---------- BUILD PAYLOAD ----------
-        data = build_payload(
-            state, header_state, temperature,
-            ctx.motor, ctx.conveyor, ctx.alarm,
-            item_detected, ctx.kpi, metrics, ctx.error,
-            ctx  #  includes alarms + history
-        )
+            mqtt_client.send_message(json.dumps(data))
 
-        mqtt_client.send_message(json.dumps(data))
+            # ---------- WATCHDOG ----------
+            if not ctx.watchdog.is_alive():
+                print("[WARNING] SYSTEM NOT RESPONDING")
 
-        # ---------- WATCHDOG ----------
-        if not ctx.watchdog.is_alive():
-            print("[WARNING] SYSTEM NOT RESPONDING")
+            time.sleep(1)
 
-        time.sleep(1)
+    except KeyboardInterrupt:
+        print("")
+        print("Shutdown requested (Ctrl+C)...")
+
+    finally:
+        print("Stopping motor, conveyor, and alarm...")
+        ctx.motor.stop()
+        ctx.conveyor.stop()
+        ctx.alarm.deactivate()
+        mqtt_client.stop()
+        print("Shutdown complete.")
+
 
 if __name__ == "__main__":
     run_system()
