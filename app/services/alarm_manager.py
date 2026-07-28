@@ -29,6 +29,9 @@ class AlarmManager:
         for alarm in self.active:
             alarm["ack"] = True
             self.history.append(alarm)
+        # Keep only the most recent 50 entries to prevent unbounded growth
+        if len(self.history) > 50:
+            self.history = self.history[-50:]
 
         self.active.clear()
 
