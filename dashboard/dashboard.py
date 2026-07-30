@@ -250,6 +250,9 @@ def on_connect(client, userdata, flags, rc):
     conn_label.config(text="MQTT: CONNECTED", fg="green")
     client.subscribe(TOPIC_SUB)
 
+def on_disconnect(client, userdata, rc):
+    conn_label.config(text="MQTT: DISCONNECTED (reconnecting...)", fg="red")
+
 
 def on_message(client, userdata, msg):
     global data
@@ -262,8 +265,13 @@ def on_message(client, userdata, msg):
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
+client.on_disconnect = on_disconnect
+client.reconnect_delay_set(min_delay=1, max_delay=30)
 
-client.connect(BROKER, PORT, 60)
+try:
+    client.connect(BROKER, PORT, 60)
+except Exception:
+    conn_label.config(text="MQTT: OFFLINE (retrying...)", fg="red")
 client.loop_start()
 
 loop()
