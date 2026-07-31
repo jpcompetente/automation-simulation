@@ -2,6 +2,11 @@ import tkinter as tk
 import paho.mqtt.client as mqtt
 import json
 from datetime import datetime
+import subprocess
+import sys
+
+# Launch the runner (control loop + publisher) as a background process
+runner_process = subprocess.Popen([sys.executable, "-m", "app.runner"])
 
 from settings import BROKER, PORT
 
@@ -275,4 +280,10 @@ except Exception:
 client.loop_start()
 
 loop()
+def on_close():
+    runner_process.terminate()
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_close)
+
 root.mainloop()
